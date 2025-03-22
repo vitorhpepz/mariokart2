@@ -20,84 +20,111 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Create track
-const trackWidth = 4;
-const trackLength = 30;
+// Road Builder System
+class RoadBuilder {
+    constructor(scene) {
+        this.scene = scene;
+        this.segments = [];
+        this.trackWidth = 4;
+        this.trackHeight = 0.2;
+        this.borderHeight = 0.3;
+        this.borderWidth = 0.2;
+    }
 
-// Create first straight segment (along Z axis)
-const straightGeometry = new THREE.BoxGeometry(trackWidth, 0.2, trackLength);
-const trackMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x333333, // Dark gray for tarmac
-    side: THREE.DoubleSide
-});
-const straightTrack = new THREE.Mesh(straightGeometry, trackMaterial);
-straightTrack.rotation.y = Math.PI / 2;
-straightTrack.position.y = 0.1;
-straightTrack.receiveShadow = true;
-scene.add(straightTrack);
+    createSegment(startPoint, endPoint) {
+        const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+        const length = direction.length();
+        const center = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        
+        // Create road segment
+        const roadGeometry = new THREE.BoxGeometry(this.trackWidth, this.trackHeight, length);
+        const roadMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x333333,
+            side: THREE.DoubleSide
+        });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        
+        // Position and rotate road
+        road.position.copy(center);
+        road.position.y = 0.1;
+        road.rotation.y = Math.atan2(direction.x, direction.z);
+        road.receiveShadow = true;
+        
+        // Create borders
+        const leftBorder = this.createBorder(length);
+        const rightBorder = this.createBorder(length);
+        
+        // Position borders
+        const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+        
+        leftBorder.position.copy(center);
+        leftBorder.position.add(perpendicular.clone().multiplyScalar(this.trackWidth/2));
+        leftBorder.position.y = 0.15;
+        leftBorder.rotation.y = Math.atan2(direction.x, direction.z);
+        
+        rightBorder.position.copy(center);
+        rightBorder.position.add(perpendicular.clone().multiplyScalar(-this.trackWidth/2));
+        rightBorder.position.y = 0.15;
+        rightBorder.rotation.y = Math.atan2(direction.x, direction.z);
+        
+        // Create center line
+        const centerLine = this.createCenterLine(length);
+        centerLine.position.copy(center);
+        centerLine.position.y = 0.11;
+        centerLine.rotation.y = Math.atan2(direction.x, direction.z);
+        
+        // Add everything to scene
+        this.scene.add(road);
+        this.scene.add(leftBorder);
+        this.scene.add(rightBorder);
+        this.scene.add(centerLine);
+        
+        // Store segment data
+        this.segments.push({
+            start: startPoint.clone(),
+            end: endPoint.clone(),
+            road,
+            leftBorder,
+            rightBorder,
+            centerLine
+        });
+        
+        return this;
+    }
+    
+    createBorder(length) {
+        const borderGeometry = new THREE.BoxGeometry(this.borderWidth, this.borderHeight, length);
+        const borderMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const border = new THREE.Mesh(borderGeometry, borderMaterial);
+        border.castShadow = true;
+        border.receiveShadow = true;
+        return border;
+    }
+    
+    createCenterLine(length) {
+        const lineGeometry = new THREE.BoxGeometry(0.1, 0.01, length);
+        const lineMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,
+            side: THREE.DoubleSide
+        });
+        return new THREE.Mesh(lineGeometry, lineMaterial);
+    }
+}
 
-// Create turn segment (along X axis)
-const turnLength = 20; // Shorter segment for the turn
-const turnGeometry = new THREE.BoxGeometry(trackWidth, 0.2, turnLength);
-const turnTrack = new THREE.Mesh(turnGeometry, trackMaterial);
-turnTrack.position.set(turnLength/2, 0.1, trackLength/2); // Position at the end of straight segment
-turnTrack.receiveShadow = true;
-scene.add(turnTrack);
+// Create road builder and build track
+const roadBuilder = new RoadBuilder(scene);
 
-// Create borders for straight segment
-const borderHeight = 0.3;
-const borderWidth = 0.2;
-
-// Straight segment borders
-const createStraightBorder = (xOffset) => {
-    const border = new THREE.Mesh(
-        new THREE.BoxGeometry(borderWidth, borderHeight, trackLength),
-        new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-    border.position.set(xOffset, 0.15, 0);
-    border.rotation.y = Math.PI / 2;
-    border.castShadow = true;
-    border.receiveShadow = true;
-    scene.add(border);
-};
-
-// Left and right borders for straight segment
-createStraightBorder(-trackWidth/2);
-createStraightBorder(trackWidth/2);
-
-// Turn segment borders
-const createTurnBorder = (zOffset) => {
-    const border = new THREE.Mesh(
-        new THREE.BoxGeometry(borderWidth, borderHeight, turnLength),
-        new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-    border.position.set(turnLength/2, 0.15, trackLength/2 + zOffset);
-    border.castShadow = true;
-    border.receiveShadow = true;
-    scene.add(border);
-};
-
-// Left and right borders for turn segment
-createTurnBorder(-trackWidth/2);
-createTurnBorder(trackWidth/2);
-
-// Create center lines
-// Straight segment center line
-const straightCenterLine = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 0.01, trackLength),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+// Create first straight segment
+roadBuilder.createSegment(
+    new THREE.Vector3(0, 0, -15),  // Start point
+    new THREE.Vector3(0, 0, 15)    // End point
 );
-straightCenterLine.rotation.y = Math.PI / 2;
-straightCenterLine.position.y = 0.11;
-scene.add(straightCenterLine);
 
-// Turn segment center line
-const turnCenterLine = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 0.01, turnLength),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+// Create right turn segment
+roadBuilder.createSegment(
+    new THREE.Vector3(0, 0, 15),    // Start point (connects to previous end)
+    new THREE.Vector3(15, 0, 15)    // End point
 );
-turnCenterLine.position.set(turnLength/2, 0.11, trackLength/2);
-scene.add(turnCenterLine);
 
 // Create obstacles and decorations
 const obstacles = new THREE.Group();
