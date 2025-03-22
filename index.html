@@ -16,6 +16,16 @@
             }
         }
     </script>
+    <script>
+        // Global function to initialize joystick
+        function initJoystick() {
+            if (typeof nipplejs !== 'undefined') {
+                window.nippleJsReady = true;
+                window.dispatchEvent(new Event('nippleJsReady'));
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/nipplejs@0.10.1/dist/nipplejs.min.js" onload="initJoystick()"></script>
     <script type="module" src="main.js"></script>
 </body>
 </html> 

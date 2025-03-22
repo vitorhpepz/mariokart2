@@ -25,13 +25,45 @@ class RoadBuilder {
     constructor(scene) {
         this.scene = scene;
         this.segments = [];
-        this.trackWidth = 4;
+        this.trackWidth = 8;
         this.trackHeight = 0.2;
         this.borderHeight = 0.3;
-        this.borderWidth = 0.2;
+        this.borderWidth = 0.3;
+        this.curveSegments = 32;
+        this.curveRadius = 12;
     }
 
-    createSegment(startPoint, endPoint) {
+    createCurvedSegment(startPoint, endPoint, isRightTurn) {
+        // Calculate curve control points
+        const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+        const length = direction.length();
+        const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+        
+        // Calculate control point based on turn direction
+        const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+        const controlPoint = midPoint.clone().add(
+            perpendicular.multiplyScalar(isRightTurn ? this.curveRadius : -this.curveRadius)
+        );
+
+        // Create a quadratic curve
+        const curve = new THREE.QuadraticBezierCurve3(
+            startPoint,
+            controlPoint,
+            endPoint
+        );
+
+        // Create points along the curve
+        const points = curve.getPoints(this.curveSegments);
+        
+        // Create track segments along the curve
+        for (let i = 0; i < points.length - 1; i++) {
+            const start = points[i];
+            const end = points[i + 1];
+            this.createStraightSegment(start, end);
+        }
+    }
+
+    createStraightSegment(startPoint, endPoint) {
         const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
         const length = direction.length();
         const center = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
@@ -67,17 +99,10 @@ class RoadBuilder {
         rightBorder.position.y = 0.15;
         rightBorder.rotation.y = Math.atan2(direction.x, direction.z);
         
-        // Create center line
-        const centerLine = this.createCenterLine(length);
-        centerLine.position.copy(center);
-        centerLine.position.y = 0.11;
-        centerLine.rotation.y = Math.atan2(direction.x, direction.z);
-        
         // Add everything to scene
         this.scene.add(road);
         this.scene.add(leftBorder);
         this.scene.add(rightBorder);
-        this.scene.add(centerLine);
         
         // Store segment data
         this.segments.push({
@@ -85,11 +110,8 @@ class RoadBuilder {
             end: endPoint.clone(),
             road,
             leftBorder,
-            rightBorder,
-            centerLine
+            rightBorder
         });
-        
-        return this;
     }
     
     createBorder(length) {
@@ -100,77 +122,72 @@ class RoadBuilder {
         border.receiveShadow = true;
         return border;
     }
-    
-    createCenterLine(length) {
-        const lineGeometry = new THREE.BoxGeometry(0.1, 0.01, length);
-        const lineMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff,
-            side: THREE.DoubleSide
-        });
-        return new THREE.Mesh(lineGeometry, lineMaterial);
-    }
 }
 
 // Create road builder and build track
 const roadBuilder = new RoadBuilder(scene);
 
-// Create a complete circuit
-// Start straight
-roadBuilder.createSegment(
-    new THREE.Vector3(0, 0, -15),    // Start point
-    new THREE.Vector3(0, 0, 15)      // First straight
+// Create a complete circuit with smooth curves
+// Start straight (longer for better approach to first turn)
+roadBuilder.createStraightSegment(
+    new THREE.Vector3(0, 0, -20),
+    new THREE.Vector3(0, 0, 20)
 );
 
-// Right turn
-roadBuilder.createSegment(
-    new THREE.Vector3(0, 0, 15),     // End of first straight
-    new THREE.Vector3(15, 0, 15)     // Turn right
+// First curve (right turn)
+roadBuilder.createCurvedSegment(
+    new THREE.Vector3(0, 0, 20),
+    new THREE.Vector3(20, 0, 20),
+    true
 );
 
-// Straight section
-roadBuilder.createSegment(
-    new THREE.Vector3(15, 0, 15),    // After right turn
-    new THREE.Vector3(15, 0, -5)     // Going back
+// Second straight
+roadBuilder.createStraightSegment(
+    new THREE.Vector3(20, 0, 20),
+    new THREE.Vector3(20, 0, -10)
 );
 
-// Left turn
-roadBuilder.createSegment(
-    new THREE.Vector3(15, 0, -5),    // Before left turn
-    new THREE.Vector3(30, 0, -5)     // Turn left
+// Second curve (right turn)
+roadBuilder.createCurvedSegment(
+    new THREE.Vector3(20, 0, -10),
+    new THREE.Vector3(40, 0, -10),
+    true
 );
 
 // Back straight
-roadBuilder.createSegment(
-    new THREE.Vector3(30, 0, -5),    // After left turn
-    new THREE.Vector3(30, 0, -25)    // Long straight
+roadBuilder.createStraightSegment(
+    new THREE.Vector3(40, 0, -10),
+    new THREE.Vector3(40, 0, -30)
 );
 
-// Final turn (left)
-roadBuilder.createSegment(
-    new THREE.Vector3(30, 0, -25),   // End of back straight
-    new THREE.Vector3(15, 0, -25)    // Turn left
+// Third curve (right turn)
+roadBuilder.createCurvedSegment(
+    new THREE.Vector3(40, 0, -30),
+    new THREE.Vector3(20, 0, -30),
+    true
 );
 
-// Connecting back
-roadBuilder.createSegment(
-    new THREE.Vector3(15, 0, -25),   // After final turn
-    new THREE.Vector3(15, 0, -15)    // Heading to start
+// Fourth straight
+roadBuilder.createStraightSegment(
+    new THREE.Vector3(20, 0, -30),
+    new THREE.Vector3(20, 0, -20)
 );
 
-// Final segment connecting to start
-roadBuilder.createSegment(
-    new THREE.Vector3(15, 0, -15),   // Almost there
-    new THREE.Vector3(0, 0, -15)     // Back to start
+// Final curve (right turn back to start)
+roadBuilder.createCurvedSegment(
+    new THREE.Vector3(20, 0, -20),
+    new THREE.Vector3(0, 0, -20),
+    true
 );
 
 // Add start/finish line
-const startLineGeometry = new THREE.BoxGeometry(4, 0.01, 1);
+const startLineGeometry = new THREE.BoxGeometry(8, 0.01, 1);
 const startLineMaterial = new THREE.MeshStandardMaterial({ 
     color: 0xffffff,
     side: THREE.DoubleSide
 });
 const startLine = new THREE.Mesh(startLineGeometry, startLineMaterial);
-startLine.position.set(0, 0.11, -14); // Just after the start
+startLine.position.set(0, 0.11, -19);
 startLine.rotation.y = Math.PI / 2;
 scene.add(startLine);
 
@@ -290,10 +307,68 @@ let moveForward = false;
 let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
+let joystickMoving = false;
+let joystickAngle = 0;
+let joystickForce = 0;
 
 // Camera offset
 const cameraOffset = new THREE.Vector3(0, 5, 10);
 const cameraLerpFactor = 0.1; // Smooth camera movement
+
+let joystick; // Declare joystick variable in wider scope
+
+// Function to initialize joystick
+function initializeJoystick() {
+    // Add touch joystick
+    const joystickContainer = document.createElement('div');
+    joystickContainer.style.position = 'absolute';
+    joystickContainer.style.bottom = '75px';
+    joystickContainer.style.left = '75px';
+    joystickContainer.style.width = '150px';
+    joystickContainer.style.height = '150px';
+    document.body.appendChild(joystickContainer);
+
+    const joystickOptions = {
+        zone: joystickContainer,
+        mode: 'static',
+        position: { left: '50%', top: '50%' },
+        color: 'white',
+        size: 150,
+        restOpacity: 0.5,
+    };
+
+    joystick = nipplejs.create(joystickOptions);
+
+    joystick.on('start move', (evt, data) => {
+        if (data.force > 0) {
+            joystickMoving = true;
+            joystickAngle = data.angle.radian;
+            joystickForce = Math.min(data.force / 50, 1); // Normalize force
+        }
+    });
+
+    joystick.on('end', () => {
+        joystickMoving = false;
+        joystickForce = 0;
+    });
+}
+
+// Wait for both DOM and nipplejs to be ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.nippleJsReady) {
+            initializeJoystick();
+        } else {
+            window.addEventListener('nippleJsReady', initializeJoystick);
+        }
+    });
+} else {
+    if (window.nippleJsReady) {
+        initializeJoystick();
+    } else {
+        window.addEventListener('nippleJsReady', initializeJoystick);
+    }
+}
 
 // Handle keyboard input
 document.addEventListener('keydown', (event) => {
@@ -349,55 +424,83 @@ function onWindowResize() {
 
 // Update function for movement
 function update() {
-    // Only rotate when moving forward or backward
-    if (moveLeft && (moveForward || moveBackward)) {
-        kart.rotation.y += rotationSpeed;
-        // Rotate wheels
-        frontLeftWheel.rotation.x = -0.5;
-        frontRightWheel.rotation.x = -0.5;
-    }
-    if (moveRight && (moveForward || moveBackward)) {
-        kart.rotation.y -= rotationSpeed;
-        // Rotate wheels
-        frontLeftWheel.rotation.x = 0.5;
-        frontRightWheel.rotation.x = 0.5;
-    }
+    // Handle joystick input
+    if (joystickMoving) {
+        // Convert joystick angle to movement
+        const angleRelativeToKart = joystickAngle - kart.rotation.y - Math.PI/2;
+        
+        // Calculate forward/backward and left/right components
+        const forwardAmount = -Math.cos(angleRelativeToKart) * joystickForce;
+        const rightAmount = -Math.sin(angleRelativeToKart) * joystickForce;
 
-    // Forward/Backward movement
-    if (moveForward) {
-        kart.position.x -= Math.sin(kart.rotation.y) * moveSpeed;
-        kart.position.z -= Math.cos(kart.rotation.y) * moveSpeed;
-        kart.rotation.x = -0.1; // Tilt forward
-        // Rotate wheels
-        frontLeftWheel.rotation.z = Math.PI / 2 + 0.2;
-        frontRightWheel.rotation.z = Math.PI / 2 + 0.2;
-        backLeftWheel.rotation.z = Math.PI / 2 + 0.2;
-        backRightWheel.rotation.z = Math.PI / 2 + 0.2;
-    } else if (moveBackward) {
-        kart.position.x += Math.sin(kart.rotation.y) * moveSpeed;
-        kart.position.z += Math.cos(kart.rotation.y) * moveSpeed;
-        kart.rotation.x = 0.1; // Tilt backward
-        // Rotate wheels
-        frontLeftWheel.rotation.z = Math.PI / 2 - 0.2;
-        frontRightWheel.rotation.z = Math.PI / 2 - 0.2;
-        backLeftWheel.rotation.z = Math.PI / 2 - 0.2;
-        backRightWheel.rotation.z = Math.PI / 2 - 0.2;
+        // Apply movement
+        kart.position.x -= Math.sin(kart.rotation.y) * moveSpeed * forwardAmount;
+        kart.position.z -= Math.cos(kart.rotation.y) * moveSpeed * forwardAmount;
+
+        // Handle rotation
+        if (Math.abs(rightAmount) > 0.1) {
+            kart.rotation.y -= rotationSpeed * rightAmount;
+        }
+
+        // Tilt effects
+        kart.rotation.x = -0.1 * forwardAmount;
+        kart.rotation.z = 0.1 * rightAmount;
+
+        // Wheel rotation
+        const wheelRotation = 0.2 * forwardAmount;
+        frontLeftWheel.rotation.z = Math.PI / 2 + wheelRotation;
+        frontRightWheel.rotation.z = Math.PI / 2 + wheelRotation;
+        backLeftWheel.rotation.z = Math.PI / 2 + wheelRotation;
+        backRightWheel.rotation.z = Math.PI / 2 + wheelRotation;
+
+        if (Math.abs(rightAmount) > 0.1) {
+            frontLeftWheel.rotation.x = rightAmount * 0.5;
+            frontRightWheel.rotation.x = rightAmount * 0.5;
+        }
     } else {
-        kart.rotation.x = 0; // Reset forward/backward tilt
-        // Reset wheel rotations
-        frontLeftWheel.rotation.z = Math.PI / 2;
-        frontRightWheel.rotation.z = Math.PI / 2;
-        backLeftWheel.rotation.z = Math.PI / 2;
-        backRightWheel.rotation.z = Math.PI / 2;
-    }
+        // Existing keyboard controls
+        if (moveLeft && (moveForward || moveBackward)) {
+            kart.rotation.y += rotationSpeed;
+            frontLeftWheel.rotation.x = -0.5;
+            frontRightWheel.rotation.x = -0.5;
+        }
+        if (moveRight && (moveForward || moveBackward)) {
+            kart.rotation.y -= rotationSpeed;
+            frontLeftWheel.rotation.x = 0.5;
+            frontRightWheel.rotation.x = 0.5;
+        }
 
-    // Side tilt during rotation
-    if (moveLeft && (moveForward || moveBackward)) {
-        kart.rotation.z = 0.1;
-    } else if (moveRight && (moveForward || moveBackward)) {
-        kart.rotation.z = -0.1;
-    } else if (!moveLeft && !moveRight) {
-        kart.rotation.z = 0;
+        if (moveForward) {
+            kart.position.x -= Math.sin(kart.rotation.y) * moveSpeed;
+            kart.position.z -= Math.cos(kart.rotation.y) * moveSpeed;
+            kart.rotation.x = -0.1;
+            frontLeftWheel.rotation.z = Math.PI / 2 + 0.2;
+            frontRightWheel.rotation.z = Math.PI / 2 + 0.2;
+            backLeftWheel.rotation.z = Math.PI / 2 + 0.2;
+            backRightWheel.rotation.z = Math.PI / 2 + 0.2;
+        } else if (moveBackward) {
+            kart.position.x += Math.sin(kart.rotation.y) * moveSpeed;
+            kart.position.z += Math.cos(kart.rotation.y) * moveSpeed;
+            kart.rotation.x = 0.1;
+            frontLeftWheel.rotation.z = Math.PI / 2 - 0.2;
+            frontRightWheel.rotation.z = Math.PI / 2 - 0.2;
+            backLeftWheel.rotation.z = Math.PI / 2 - 0.2;
+            backRightWheel.rotation.z = Math.PI / 2 - 0.2;
+        } else {
+            kart.rotation.x = 0;
+            frontLeftWheel.rotation.z = Math.PI / 2;
+            frontRightWheel.rotation.z = Math.PI / 2;
+            backLeftWheel.rotation.z = Math.PI / 2;
+            backRightWheel.rotation.z = Math.PI / 2;
+        }
+
+        if (moveLeft && (moveForward || moveBackward)) {
+            kart.rotation.z = 0.1;
+        } else if (moveRight && (moveForward || moveBackward)) {
+            kart.rotation.z = -0.1;
+        } else {
+            kart.rotation.z = 0;
+        }
     }
 
     // Update camera position to follow the kart
