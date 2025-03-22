@@ -2,52 +2,140 @@ import * as THREE from 'three';
 
 // Scene setup
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB); // Sky blue background
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// Create floor
-const floorGeometry = new THREE.PlaneGeometry(100, 100);
-const floorMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x808080,
+// Create ground with grass texture
+const groundGeometry = new THREE.PlaneGeometry(100, 100);
+const groundMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x3a7e3a,
     side: THREE.DoubleSide
 });
-const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
 
-// Create obstacles
+// Create track
+const trackWidth = 4;
+const trackLength = 30;
+
+// Create first straight segment (along Z axis)
+const straightGeometry = new THREE.BoxGeometry(trackWidth, 0.2, trackLength);
+const trackMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x333333, // Dark gray for tarmac
+    side: THREE.DoubleSide
+});
+const straightTrack = new THREE.Mesh(straightGeometry, trackMaterial);
+straightTrack.rotation.y = Math.PI / 2;
+straightTrack.position.y = 0.1;
+straightTrack.receiveShadow = true;
+scene.add(straightTrack);
+
+// Create turn segment (along X axis)
+const turnLength = 20; // Shorter segment for the turn
+const turnGeometry = new THREE.BoxGeometry(trackWidth, 0.2, turnLength);
+const turnTrack = new THREE.Mesh(turnGeometry, trackMaterial);
+turnTrack.position.set(turnLength/2, 0.1, trackLength/2); // Position at the end of straight segment
+turnTrack.receiveShadow = true;
+scene.add(turnTrack);
+
+// Create borders for straight segment
+const borderHeight = 0.3;
+const borderWidth = 0.2;
+
+// Straight segment borders
+const createStraightBorder = (xOffset) => {
+    const border = new THREE.Mesh(
+        new THREE.BoxGeometry(borderWidth, borderHeight, trackLength),
+        new THREE.MeshStandardMaterial({ color: 0xffffff })
+    );
+    border.position.set(xOffset, 0.15, 0);
+    border.rotation.y = Math.PI / 2;
+    border.castShadow = true;
+    border.receiveShadow = true;
+    scene.add(border);
+};
+
+// Left and right borders for straight segment
+createStraightBorder(-trackWidth/2);
+createStraightBorder(trackWidth/2);
+
+// Turn segment borders
+const createTurnBorder = (zOffset) => {
+    const border = new THREE.Mesh(
+        new THREE.BoxGeometry(borderWidth, borderHeight, turnLength),
+        new THREE.MeshStandardMaterial({ color: 0xffffff })
+    );
+    border.position.set(turnLength/2, 0.15, trackLength/2 + zOffset);
+    border.castShadow = true;
+    border.receiveShadow = true;
+    scene.add(border);
+};
+
+// Left and right borders for turn segment
+createTurnBorder(-trackWidth/2);
+createTurnBorder(trackWidth/2);
+
+// Create center lines
+// Straight segment center line
+const straightCenterLine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 0.01, trackLength),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+);
+straightCenterLine.rotation.y = Math.PI / 2;
+straightCenterLine.position.y = 0.11;
+scene.add(straightCenterLine);
+
+// Turn segment center line
+const turnCenterLine = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 0.01, turnLength),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+);
+turnCenterLine.position.set(turnLength/2, 0.11, trackLength/2);
+scene.add(turnCenterLine);
+
+// Create obstacles and decorations
 const obstacles = new THREE.Group();
 
-// Create columns
-const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
-const columnMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+// Create trees
+const treeGeometry = new THREE.CylinderGeometry(0.2, 0.4, 2, 8);
+const treeMaterial = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
+const treeTopGeometry = new THREE.ConeGeometry(1, 2, 8);
+const treeTopMaterial = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
 
-// Add columns in a circular pattern
-for (let i = 0; i < 8; i++) {
-    const column = new THREE.Mesh(columnGeometry, columnMaterial);
-    const angle = (i / 8) * Math.PI * 2;
-    const radius = 10;
-    column.position.x = Math.cos(angle) * radius;
-    column.position.z = Math.sin(angle) * radius;
-    column.position.y = 1;
-    obstacles.add(column);
+for (let i = 0; i < 20; i++) {
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(treeGeometry, treeMaterial);
+    const top = new THREE.Mesh(treeTopGeometry, treeTopMaterial);
+    top.position.y = 1.5;
+    
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 15 + Math.random() * 10;
+    tree.position.x = Math.cos(angle) * radius;
+    tree.position.z = Math.sin(angle) * radius;
+    
+    tree.add(trunk);
+    tree.add(top);
+    obstacles.add(tree);
 }
 
-// Add some blocks as checkpoints
-const blockGeometry = new THREE.BoxGeometry(1, 0.5, 1);
-const blockMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+// Create rocks
+const rockGeometry = new THREE.DodecahedronGeometry(0.5);
+const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
 
-// Add blocks in a pattern
-for (let i = 0; i < 5; i++) {
-    const block = new THREE.Mesh(blockGeometry, blockMaterial);
-    const angle = (i / 5) * Math.PI * 2;
-    const radius = 15;
-    block.position.x = Math.cos(angle) * radius;
-    block.position.z = Math.sin(angle) * radius;
-    block.position.y = 0.25;
-    obstacles.add(block);
+for (let i = 0; i < 15; i++) {
+    const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 10 + Math.random() * 15;
+    rock.position.x = Math.cos(angle) * radius;
+    rock.position.z = Math.sin(angle) * radius;
+    rock.position.y = 0.25;
+    obstacles.add(rock);
 }
 
 scene.add(obstacles);
@@ -60,6 +148,7 @@ const bodyGeometry = new THREE.BoxGeometry(2, 0.5, 1);
 const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
 const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
 body.position.y = 0.25;
+body.castShadow = true;
 kart.add(body);
 
 // Wheels
@@ -70,22 +159,26 @@ const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
 const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
 frontLeftWheel.rotation.z = Math.PI / 2;
 frontLeftWheel.position.set(-1, 0.2, 0.6);
+frontLeftWheel.castShadow = true;
 kart.add(frontLeftWheel);
 
 const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
 frontRightWheel.rotation.z = Math.PI / 2;
 frontRightWheel.position.set(-1, 0.2, -0.6);
+frontRightWheel.castShadow = true;
 kart.add(frontRightWheel);
 
 // Back wheels
 const backLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
 backLeftWheel.rotation.z = Math.PI / 2;
 backLeftWheel.position.set(1, 0.2, 0.6);
+backLeftWheel.castShadow = true;
 kart.add(backLeftWheel);
 
 const backRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
 backRightWheel.rotation.z = Math.PI / 2;
 backRightWheel.position.set(1, 0.2, -0.6);
+backRightWheel.castShadow = true;
 kart.add(backRightWheel);
 
 // Driver
@@ -93,6 +186,7 @@ const driverGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.8, 16);
 const driverMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 const driver = new THREE.Mesh(driverGeometry, driverMaterial);
 driver.position.set(0, 0.8, 0);
+driver.castShadow = true;
 kart.add(driver);
 
 // Add kart to scene
@@ -103,8 +197,11 @@ scene.add(kart);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(5, 5, 5);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
 scene.add(directionalLight);
 
 // Camera position
