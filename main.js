@@ -114,17 +114,65 @@ class RoadBuilder {
 // Create road builder and build track
 const roadBuilder = new RoadBuilder(scene);
 
-// Create first straight segment
+// Create a complete circuit
+// Start straight
 roadBuilder.createSegment(
-    new THREE.Vector3(0, 0, -15),  // Start point
-    new THREE.Vector3(0, 0, 15)    // End point
+    new THREE.Vector3(0, 0, -15),    // Start point
+    new THREE.Vector3(0, 0, 15)      // First straight
 );
 
-// Create right turn segment
+// Right turn
 roadBuilder.createSegment(
-    new THREE.Vector3(0, 0, 15),    // Start point (connects to previous end)
-    new THREE.Vector3(15, 0, 15)    // End point
+    new THREE.Vector3(0, 0, 15),     // End of first straight
+    new THREE.Vector3(15, 0, 15)     // Turn right
 );
+
+// Straight section
+roadBuilder.createSegment(
+    new THREE.Vector3(15, 0, 15),    // After right turn
+    new THREE.Vector3(15, 0, -5)     // Going back
+);
+
+// Left turn
+roadBuilder.createSegment(
+    new THREE.Vector3(15, 0, -5),    // Before left turn
+    new THREE.Vector3(30, 0, -5)     // Turn left
+);
+
+// Back straight
+roadBuilder.createSegment(
+    new THREE.Vector3(30, 0, -5),    // After left turn
+    new THREE.Vector3(30, 0, -25)    // Long straight
+);
+
+// Final turn (left)
+roadBuilder.createSegment(
+    new THREE.Vector3(30, 0, -25),   // End of back straight
+    new THREE.Vector3(15, 0, -25)    // Turn left
+);
+
+// Connecting back
+roadBuilder.createSegment(
+    new THREE.Vector3(15, 0, -25),   // After final turn
+    new THREE.Vector3(15, 0, -15)    // Heading to start
+);
+
+// Final segment connecting to start
+roadBuilder.createSegment(
+    new THREE.Vector3(15, 0, -15),   // Almost there
+    new THREE.Vector3(0, 0, -15)     // Back to start
+);
+
+// Add start/finish line
+const startLineGeometry = new THREE.BoxGeometry(4, 0.01, 1);
+const startLineMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    side: THREE.DoubleSide
+});
+const startLine = new THREE.Mesh(startLineGeometry, startLineMaterial);
+startLine.position.set(0, 0.11, -14); // Just after the start
+startLine.rotation.y = Math.PI / 2;
+scene.add(startLine);
 
 // Create obstacles and decorations
 const obstacles = new THREE.Group();

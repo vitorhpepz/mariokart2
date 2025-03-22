@@ -1,42 +1,27 @@
 const express = require('express');
 const path = require('path');
 const app = express();
-const port = 3000;
 
-// Serve static files from the current directory
+// Serve static files from the root directory
 app.use(express.static(__dirname));
 
-// Function to find an available port
-function findAvailablePort(startPort) {
-    return new Promise((resolve, reject) => {
-        const server = require('net').createServer();
-        
-        server.listen(startPort, () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
+// Handle all routes by serving index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                resolve(findAvailablePort(startPort + 1));
-            } else {
-                reject(err);
-            }
-        });
-    });
-}
-
-// Start server with port finding
-async function startServer() {
+const startServer = async (port = 3000) => {
     try {
-        const availablePort = await findAvailablePort(port);
-        app.listen(availablePort, () => {
-            console.log(`Server running at http://localhost:${availablePort}`);
-        });
+        await app.listen(port);
+        console.log(`Server running at http://localhost:${port}`);
     } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
+        if (error.code === 'EADDRINUSE') {
+            console.log(`Port ${port} is busy, trying ${port + 1}`);
+            await startServer(port + 1);
+        } else {
+            console.error('Error starting server:', error);
+        }
     }
-}
+};
 
 startServer(); 
