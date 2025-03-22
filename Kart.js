@@ -122,7 +122,7 @@ export class Kart {
                 mode: 'static',
                 position: { left: '50%', top: '50%' },
                 color: 'white',
-                size: 150,
+                size: 100,
                 restOpacity: 0.9
             });
 

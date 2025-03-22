@@ -25,13 +25,13 @@
         }
         #joystickZone {
             position: fixed;
-            bottom: 100px;
-            left: 100px;
-            width: 150px;
-            height: 150px;
+            bottom: 50px;
+            left: 50px;
+            width: 100px;
+            height: 100px;
             background: rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border: 3px solid rgba(255, 255, 255, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.8);
             z-index: 1000;
             touch-action: none;
             -webkit-tap-highlight-color: transparent;
@@ -61,6 +61,21 @@
         } else {
             console.log('nipplejs loaded successfully');
         }
+
+        // Simple auto-reload script
+        let lastContent = '';
+        setInterval(() => {
+            fetch('main.js')
+                .then(response => response.text())
+                .then(content => {
+                    if (content !== lastContent && lastContent !== '') {
+                        console.log('Changes detected, reloading...');
+                        window.location.reload();
+                    }
+                    lastContent = content;
+                })
+                .catch(error => console.error('Error checking for changes:', error));
+        }, 1000);
     </script>
     <script type="module" src="main.js"></script>
 </body>
