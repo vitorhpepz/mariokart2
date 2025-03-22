@@ -17,6 +17,41 @@ const floor = new THREE.Mesh(floorGeometry, floorMaterial);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
+// Create obstacles
+const obstacles = new THREE.Group();
+
+// Create columns
+const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
+const columnMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+
+// Add columns in a circular pattern
+for (let i = 0; i < 8; i++) {
+    const column = new THREE.Mesh(columnGeometry, columnMaterial);
+    const angle = (i / 8) * Math.PI * 2;
+    const radius = 10;
+    column.position.x = Math.cos(angle) * radius;
+    column.position.z = Math.sin(angle) * radius;
+    column.position.y = 1;
+    obstacles.add(column);
+}
+
+// Add some blocks as checkpoints
+const blockGeometry = new THREE.BoxGeometry(1, 0.5, 1);
+const blockMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+// Add blocks in a pattern
+for (let i = 0; i < 5; i++) {
+    const block = new THREE.Mesh(blockGeometry, blockMaterial);
+    const angle = (i / 5) * Math.PI * 2;
+    const radius = 15;
+    block.position.x = Math.cos(angle) * radius;
+    block.position.z = Math.sin(angle) * radius;
+    block.position.y = 0.25;
+    obstacles.add(block);
+}
+
+scene.add(obstacles);
+
 // Create kart model
 const kart = new THREE.Group();
 
