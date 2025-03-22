@@ -5,8 +5,6 @@ export class RoadBuilder {
         this.scene = scene;
         this.trackWidth = 8;
         this.trackHeight = 0.1;
-        this.borderHeight = 0.3;
-        this.borderWidth = 0.3;
         this.curveSegments = 64;
         this.controlPoints = [];
     }
@@ -26,7 +24,6 @@ export class RoadBuilder {
         
         // Create points along the curve for the road surface
         const points = curve.getPoints(this.curveSegments);
-        const roadShape = new THREE.Shape();
         
         // Create vertices for the road surface
         const vertices = [];
@@ -86,65 +83,7 @@ export class RoadBuilder {
         road.receiveShadow = true;
         road.castShadow = true;
         
-        // Create borders
-        const borderMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            roughness: 0.5,
-            metalness: 0.3
-        });
-        
-        // Create border meshes along the track edges
-        for (let i = 0; i < points.length; i++) {
-            const point = points[i];
-            const tangent = curve.getTangent(i / (points.length - 1));
-            const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-            
-            // Left border
-            const leftBorderGeometry = new THREE.BoxGeometry(this.borderWidth, this.borderHeight, 1);
-            const leftBorder = new THREE.Mesh(leftBorderGeometry, borderMaterial);
-            const leftPoint = point.clone().add(normal.clone().multiplyScalar(this.trackWidth / 2));
-            leftBorder.position.set(leftPoint.x, this.trackHeight + this.borderHeight / 2, leftPoint.z);
-            leftBorder.lookAt(leftPoint.clone().add(tangent));
-            leftBorder.castShadow = true;
-            leftBorder.receiveShadow = true;
-            
-            // Right border
-            const rightBorderGeometry = new THREE.BoxGeometry(this.borderWidth, this.borderHeight, 1);
-            const rightBorder = new THREE.Mesh(rightBorderGeometry, borderMaterial);
-            const rightPoint = point.clone().add(normal.clone().multiplyScalar(-this.trackWidth / 2));
-            rightBorder.position.set(rightPoint.x, this.trackHeight + this.borderHeight / 2, rightPoint.z);
-            rightBorder.lookAt(rightPoint.clone().add(tangent));
-            rightBorder.castShadow = true;
-            rightBorder.receiveShadow = true;
-            
-            this.scene.add(leftBorder);
-            this.scene.add(rightBorder);
-        }
-        
         this.scene.add(road);
-        this.createStartFinishLine(curve);
-    }
-
-    createStartFinishLine(curve) {
-        const startPoint = curve.getPoint(0);
-        const tangent = curve.getTangent(0);
-        const perpendicular = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-        
-        const lineGeometry = new THREE.PlaneGeometry(this.trackWidth - 0.5, 1);
-        const lineMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff,
-            side: THREE.DoubleSide,
-            roughness: 0.8
-        });
-        
-        const startLine = new THREE.Mesh(lineGeometry, lineMaterial);
-        startLine.position.copy(startPoint);
-        startLine.position.y = this.trackHeight + 0.01;
-        startLine.rotation.x = -Math.PI / 2;
-        startLine.rotation.y = Math.atan2(perpendicular.x, perpendicular.z);
-        startLine.receiveShadow = true;
-        
-        this.scene.add(startLine);
     }
 
     buildTrack() {
