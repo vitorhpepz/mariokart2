@@ -25,7 +25,6 @@ jobs:
         uses: actions/configure-pages@v4
         with:
           enablement: true
-          base_path: '/mariokart'
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
